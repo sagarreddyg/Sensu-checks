@@ -1,3 +1,4 @@
+#! /usr/bin/python3
 # -*- encoding: utf-8 -*-
 # requires a recent enough python with idna support in socket
 # pyopenssl, cryptography and idna

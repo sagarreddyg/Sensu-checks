@@ -2,7 +2,12 @@
 # -*- encoding: utf-8 -*-
 # requires a recent enough python with idna support in socket
 # pyopenssl, cryptography and idna
-
+# check config sensuctl check create check_name --commamd 'file location' --interval 30 --subscriptions subscriptionname
+#This check will alerts every 30 seconds and gives the output for ssl certificate expiration date
+#Warning : 100 days
+#Critical : 30 days
+import os
+import concurrent.futures
 from OpenSSL import SSL
 from cryptography import x509
 from cryptography.x509.oid import NameOID
@@ -12,18 +17,14 @@ from socket import socket
 from collections import namedtuple
 from datetime import date
 import sys
-
-
+import ListofHosts
 HostInfo = namedtuple(field_names='cert hostname peername', typename='HostInfo')
 # ('www.bestprice.in', 443)
-HOSTS = [
-    ('www.capillarytech.com', 443),
-    ('www.pizzahut.co.za', 443),
-    ('mon-dashboard.capillarytech.cn.com', 443),
-    ('www.gait.com.kw', 443),
-    ('www.bestprice.in', 443),
-    ('www.capillarytech.com', 443)
-]
+
+HOSTS = []
+cri = ListofHosts.get_listof_criticalhosts()
+for i in range(len(cri)):
+    HOSTS.append((cri[i], 443))
 
 
 def verify_cert(cert, hostname):
@@ -79,68 +80,85 @@ def get_issuer(cert):
         return None
 
 
-def critical(hostinfo):
+def Printinfo():
+
+    return (''' » {hostname} « … {peername}
+                \tcommonName: {commonname}
+                \tSAN: {SAN}
+                \tissuer: {issuer}
+                '''.format(
+                hostname=hostinfo.hostname,
+                peername=hostinfo.peername,
+                commonname=get_common_name(hostinfo.cert),
+                SAN=get_alt_names(hostinfo.cert),
+                issuer=get_issuer(hostinfo.cert),
+            ))
+
+
+def auto_check(host):
+    os.system(
+        'sensuctl check create {} --command "/home/ubuntu/check-ssl.py" --interval 30 --subscriptions system'.format(host))
+
+
+def auto_delete_check(host):
+    os.system('sensuctl check delete {} --skip-confirm'.format(host))
+
+
+def get_criticalhosts():
+    criticalhost=[]
+    with open("Critical.txt", "r+") as file:
+        for line in file:
+            criticalhost.append((line[:-1],443))
+    file.close()
+    return criticalhost
+
+
+def timeinfo():
     da = datetime.date.today()
     d1 = date(hostinfo.cert.not_valid_after.year, hostinfo.cert.not_valid_after.month,
               hostinfo.cert.not_valid_after.day)
     d2 = date(da.year, da.month, da.day)
-    daysi = d1 - d2
-    exdays = daysi
+    return d1 - d2
 
+
+def critical(hostinfo):
+    exdays = timeinfo()
     if exdays.days < 10:
         if exdays.days < 0:
-            print("CRITICAL : {} SSL certificate is expired on {} days: {} ".format(hostinfo.hostname,
-                                                                                      hostinfo.cert.not_valid_after,
-                                                                                      daysi.days))
-            li = open('criticallist.txt', "rw")
-            if hostinfo.hostname not in li:
-                li.write(hostinfo.hostname)
-            li.close()
+            print("Critical : SSL Certificate for {} is expired on {} days: {} ".format(hostinfo.hostname,
+                                                                                            hostinfo.cert.not_valid_after,
+                                                                                            exdays.days))
+            auto_check(hostinfo.hostname)
+
         if 0 <= exdays.days <= 10:
-            print("CRITICAL : {} SSL certificate will expire on {} days: {} ".format(hostinfo.hostname,
-                                                                                      hostinfo.cert.not_valid_after,
-                                                                                      daysi.days))
-            li=open('warniniglist.txt', "rw")
-            if hostinfo.hostname not in li:
-                li.write(hostinfo.hostname)
+            print("Critical : SSL Certificate for {} will expire on {} days: {} ".format(hostinfo.hostname,
+                                                                                            hostinfo.cert.not_valid_after,
+                                                                                            exdays.days))
+            auto_check(hostinfo.hostname)
 
 
 def warning(hostinfo):
-    da = datetime.date.today()
-    d1 = date(hostinfo.cert.not_valid_after.year, hostinfo.cert.not_valid_after.month,
-              hostinfo.cert.not_valid_after.day)
-    d2 = date(da.year, da.month, da.day)
-    daysi = d1 - d2
-    exdays = daysi
-
+    exdays = timeinfo()
     if 10 < exdays.days <= 30:
-        print("WARNING : {} SSL certificate will expire on {} days: {} ".format(hostinfo.hostname,
-
-                                                                                hostinfo.cert.not_valid_after,
-                                                                                daysi.days))
+        print("Warning : SSL Certificate for {} will expire on {} days: {}".format(hostinfo.hostname,
+                                                                                        hostinfo.cert.not_valid_after,
+                                                                                        exdays.days))
 
 
 def check_it_out(hostname, port):
     hostinfo = get_certificate(hostname, port)
 
 
-import concurrent.futures
-
 if __name__ == '__main__':
     criticalcount = 0
     warningcount = 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as e:
         for hostinfo in e.map(lambda x: get_certificate(x[0], x[1]), HOSTS):
-            da = datetime.date.today()
-            d1 = date(hostinfo.cert.not_valid_after.year, hostinfo.cert.not_valid_after.month,
-                      hostinfo.cert.not_valid_after.day)
-            d2 = date(da.year, da.month, da.day)
-            daysi = d1 - d2
-            exdays = daysi
-            if exdays.days <= 30:
+            exdays = timeinfo()
+            if exdays.days <= 10:
                 critical(hostinfo)
                 criticalcount += 1
-            if exdays.days <= 40:
+            elif exdays.days <= 30:
                 warning(hostinfo)
                 warningcount += 1
     if criticalcount >=1:

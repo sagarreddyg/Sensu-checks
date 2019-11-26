@@ -1,4 +1,4 @@
-#! /usr/bin/pythom3
+#! /usr/bin/python3
 # -*- encoding: utf-8 -*-
 # requires a recent enough python with idna support in socket
 # pyopenssl, cryptography and idna
@@ -6,7 +6,8 @@
 #This check will alerts every 30 seconds and gives the output for ssl certificate expiration date
 #Warning : 100 days
 #Critical : 30 days
-
+import os
+import concurrent.futures
 from OpenSSL import SSL
 from cryptography import x509
 from cryptography.x509.oid import NameOID
@@ -16,23 +17,12 @@ from socket import socket
 from collections import namedtuple
 from datetime import date
 import sys
-import ListofHosts
-from ListofHosts import update_criticalhosts
-from ListofHosts import get_listof_criticalhosts
-HostInfo = namedtuple(field_names='cert hostname peername', typename='HostInfo')
 
-# ('www.bestprice.in', 443)
-HOSTS =ListofHosts.HOSTS
-"""[
-    ('www.capillarytech.com', 443),
-    ('www.pizzahut.co.za', 443),
-    ('mon-dashboard.capillarytech.cn.com', 443),
-    ('www.gait.com.kw', 443),
-    ('www.bestprice.in', 443),
-    ('www.capillarytech.com', 443),
-    ('phindia-resources.cdn.martjack.io', 443),
-    ('www.kuwait.pizzahut.me', 443)
-]"""
+HostInfo = namedtuple(field_names='cert hostname peername', typename='HostInfo')
+inp = sys.argv[1]
+
+HOSTS = []
+HOSTS.append((inp, 443))
 
 
 def verify_cert(cert, hostname):
@@ -102,66 +92,64 @@ def Printinfo():
                 issuer=get_issuer(hostinfo.cert),
             ))
 
-def critical(hostinfo, Printinfo):
+
+def auto_check(host):
+    os.system(
+        'sensuctl check create {} --command "/home/ubuntu/check-ssl.py" --interval 30 --subscriptions system'.format(host))
+
+
+def timeinfo():
     da = datetime.date.today()
     d1 = date(hostinfo.cert.not_valid_after.year, hostinfo.cert.not_valid_after.month,
               hostinfo.cert.not_valid_after.day)
     d2 = date(da.year, da.month, da.day)
     daysi = d1 - d2
-    exdays = daysi
+    return daysi
 
-    if exdays.days < 10:
+
+def critical(hostinfo, Printinfo):
+    exdays = timeinfo()
+    if exdays.days < 50:
         if exdays.days < 0:
             print("Critical : SSL Certificate for {} is expired on {} days: {} \n{}".format(hostinfo.hostname,
                                                                                             hostinfo.cert.not_valid_after,
-                                                                                            daysi.days, Printinfo))
-
-
-        if 0 <= exdays.days <= 10:
+                                                                                            exdays.days, Printinfo))
+        if 0 <= exdays.days <= 50:
             print("Critical : SSL Certificate for {} will expire on {} days: {} \n{}".format(hostinfo.hostname,
                                                                                             hostinfo.cert.not_valid_after,
-                                                                                            daysi.days, Printinfo))
+                                                                                            exdays.days, Printinfo))
+
 
 def warning(hostinfo, Printinfo):
-    da = datetime.date.today()
-    d1 = date(hostinfo.cert.not_valid_after.year, hostinfo.cert.not_valid_after.month,
-              hostinfo.cert.not_valid_after.day)
-    d2 = date(da.year, da.month, da.day)
-    daysi = d1 - d2
-    exdays = daysi
-    if 10 < exdays.days <= 200:
+    exdays = timeinfo()
+    if 50 < exdays.days <= 1000:
         print("Warning : SSL Certificate for {} is expired on {} days: {} \n{}".format(hostinfo.hostname,
                                                                                         hostinfo.cert.not_valid_after,
-                                                                                        daysi.days, Printinfo))
+                                                                                        exdays.days, Printinfo))
+
 
 def check_it_out(hostname, port):
     hostinfo = get_certificate(hostname, port)
 
-
-import concurrent.futures
 
 if __name__ == '__main__':
     criticalcount = 0
     warningcount = 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as e:
         for hostinfo in e.map(lambda x: get_certificate(x[0], x[1]), HOSTS):
-            da = datetime.date.today()
-            d1 = date(hostinfo.cert.not_valid_after.year, hostinfo.cert.not_valid_after.month,
-                      hostinfo.cert.not_valid_after.day)
-            d2 = date(da.year, da.month, da.day)
-            daysi = d1 - d2
-            exdays = daysi
-            if exdays.days <= 30:
-                critical(hostinfo, Printinfo())
-                criticalcount += 1
-            if exdays.days <= 200:
-                warning(hostinfo, Printinfo())
-                warningcount += 1
-
+            for i in range(len(HOSTS)):
+                if inp == HOSTS[i][0]:
+                    exdays = timeinfo()
+                    if exdays.days <= 50:
+                        critical(hostinfo, Printinfo())
+                        criticalcount += 1
+                    elif exdays.days <= 1000:
+                        warning(hostinfo, Printinfo())
+                        warningcount += 1
     if criticalcount >=1:
         sys.exit(2)
     elif warningcount >=1:
         sys.exit(1)
     else:
-        print("OK : All sll certificate are up to date")
+        print("OK : SSL certificate is up to date")
         sys.exit(0)

@@ -1,4 +1,4 @@
-#! /usr/bin/python3
+#! usr/bin/python
 # -*- encoding: utf-8 -*-
 # requires a recent enough python with idna support in socket
 # pyopenssl, cryptography and idna
@@ -16,26 +16,28 @@ from socket import socket
 from collections import namedtuple
 from datetime import date
 import sys
-import ListofHosts
+
 HostInfo = namedtuple(field_names='cert hostname peername', typename='HostInfo')
 
 # ('www.bestprice.in', 443)
-HOSTS =ListofHosts.HOSTS
-"""[
-    ('www.capillarytech.com', 443),
-    ('www.pizzahut.co.za', 443),
-    ('mon-dashboard.capillarytech.cn.com', 443),
-    ('www.gait.com.kw', 443),
-    ('www.bestprice.in', 443),
-    ('www.capillarytech.com', 443),
-    ('phindia-resources.cdn.martjack.io', 443),
-    ('www.kuwait.pizzahut.me', 443)
-]"""
+
+def get_listof_hosts():
+    host=[]
+    with open("List.txt", "r+") as file:
+        for line in file:
+            host.append("{}".format(line[:-1]),)
+    return host
+
+
+HOSTS = []
+cri = get_listof_hosts()
+for i in range(len(cri)):
+    HOSTS.append((cri[i], 443))
 
 unknownhost = []
 
 def verify_cert(cert, hostname):
-    # verify notAfter/notBefore, CA trusted, servername/sni/hostname
+    # verify notAfternotBefore, CA trusted, servernamesnihostname
     cert.has_expired()
     # service_identity.pyopenssl.verify_hostname(client_ssl, hostname)
     # issuer
@@ -83,7 +85,6 @@ def get_issuer(cert):
     except x509.ExtensionNotFound:
         return None
 
-
 def Printinfo():
 
     return (''' » {hostname} « … {peername}
@@ -98,7 +99,9 @@ def Printinfo():
                 issuer=get_issuer(hostinfo.cert),
             ))
 
-def critical(hostinfo, Printinfo):
+
+
+def critical(hostinfo):
     da = datetime.date.today()
     d1 = date(hostinfo.cert.not_valid_after.year, hostinfo.cert.not_valid_after.month,
               hostinfo.cert.not_valid_after.day)
@@ -108,27 +111,27 @@ def critical(hostinfo, Printinfo):
 
     if exdays.days < 10:
         if exdays.days < 0:
-            print("Critical : SSL Certificate for {} is expired on {} days: {} \n{}".format(hostinfo.hostname,
+            print("Critical : SSL Certificate for {} is expired on {} days: {}".format(hostinfo.hostname,
                                                                                             hostinfo.cert.not_valid_after,
-                                                                                            daysi.days, Printinfo))
+                                                                                            daysi.days))
 
 
         if 0 <= exdays.days <= 10:
-            print("Critical : SSL Certificate for {} will expire on {} days: {} \n{}".format(hostinfo.hostname,
+            print("Critical : SSL Certificate for {} will expire on {} days: {}".format(hostinfo.hostname,
                                                                                             hostinfo.cert.not_valid_after,
-                                                                                            daysi.days, Printinfo))
+                                                                                            daysi.days))
 
-def warning(hostinfo, Printinfo):
+def warning(hostinfo):
     da = datetime.date.today()
     d1 = date(hostinfo.cert.not_valid_after.year, hostinfo.cert.not_valid_after.month,
               hostinfo.cert.not_valid_after.day)
     d2 = date(da.year, da.month, da.day)
     daysi = d1 - d2
     exdays = daysi
-    if 10 < exdays.days <= 2000:
-        print("Warning : SSL Certificate for {} is expired on {} days: {} \n{}".format(hostinfo.hostname,
+    if 30 < exdays.days <= 45:
+        print("Warning : SSL Certificate for {} is expired on {} days: {} ".format(hostinfo.hostname,
                                                                                         hostinfo.cert.not_valid_after,
-                                                                                        daysi.days, Printinfo))
+                                                                                        daysi.days))
 
 def check_it_out(hostname, port):
     hostinfo = get_certificate(hostname, port)
@@ -150,11 +153,11 @@ if __name__ == '__main__':
                 d2 = date(da.year, da.month, da.day)
                 daysi = d1 - d2
                 exdays = daysi
-                if exdays.days <= 10:
-                    critical(hostinfo, Printinfo())
+                if exdays.days <= 30:
+                    critical(hostinfo)
                     criticalcount += 1
-                if exdays.days <= 2000:
-                    warning(hostinfo, Printinfo())
+                if exdays.days <= 45:
+                    warning(hostinfo)
                     warningcount += 1
         except ConnectionRefusedError:
             print("Please check given host url is correct ot not after host name:{} and line number {}".format(hostinfo.hostname, urlcount+1))

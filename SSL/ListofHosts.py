@@ -54,11 +54,3 @@ def update_criticalhosts(host):
         else:  # not found, we are at the eof
             file.write("{}\n".format(host))  # append missing datd
     file.close()
-
-
-def update_hostname(inp):
-    os.remove('single.txt')
-    file = open("single.txt", "w")
-    file.write(inp)
-    file.write('\n')
-    file.close()

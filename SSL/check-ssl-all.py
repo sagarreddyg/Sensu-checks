@@ -6,7 +6,8 @@
 #This check will alerts every 30 seconds and gives the output for ssl certificate expiration date
 #Warning : 100 days
 #Critical : 30 days
-
+import os
+import concurrent.futures
 from OpenSSL import SSL
 from cryptography import x509
 from cryptography.x509.oid import NameOID
@@ -17,22 +18,16 @@ from collections import namedtuple
 from datetime import date
 import sys
 import ListofHosts
+
 HostInfo = namedtuple(field_names='cert hostname peername', typename='HostInfo')
-
 # ('www.bestprice.in', 443)
-HOSTS =ListofHosts.HOSTS
-"""[
-    ('www.capillarytech.com', 443),
-    ('www.pizzahut.co.za', 443),
-    ('mon-dashboard.capillarytech.cn.com', 443),
-    ('www.gait.com.kw', 443),
-    ('www.bestprice.in', 443),
-    ('www.capillarytech.com', 443),
-    ('phindia-resources.cdn.martjack.io', 443),
-    ('www.kuwait.pizzahut.me', 443)
-]"""
 
-unknownhost = []
+
+HOSTS = []
+cri = ListofHosts.get_listof_criticalhosts()
+for i in range(len(cri)):
+    HOSTS.append((cri[i], 443))
+
 
 def verify_cert(cert, hostname):
     # verify notAfter/notBefore, CA trusted, servername/sni/hostname
@@ -44,11 +39,13 @@ def verify_cert(cert, hostname):
 def get_certificate(hostname, port):
     hostname_idna = idna.encode(hostname)
     sock = socket()
+
     sock.connect((hostname, port))
     peername = sock.getpeername()
     ctx = SSL.Context(SSL.SSLv23_METHOD)  # most compatible
     ctx.check_hostname = False
     ctx.verify_mode = SSL.VERIFY_NONE
+
     sock_ssl = SSL.Connection(ctx, sock)
     sock_ssl.set_connect_state()
     sock_ssl.set_tlsext_host_name(hostname_idna)
@@ -57,6 +54,7 @@ def get_certificate(hostname, port):
     crypto_cert = cert.to_cryptography()
     sock_ssl.close()
     sock.close()
+
     return HostInfo(cert=crypto_cert, peername=peername, hostname=hostname)
 
 
@@ -98,70 +96,72 @@ def Printinfo():
                 issuer=get_issuer(hostinfo.cert),
             ))
 
-def critical(hostinfo, Printinfo):
+
+def auto_check(host):
+    os.system(
+        'sensuctl check create SSL-check-{} --command "python /home/ubuntu/sensu/check-ssl-single.py {}" --interval 30 --subscriptions system'.format(host, host))
+    print("New SSL check is created")
+
+
+def get_criticalhosts():
+    criticalhost=[]
+    with open("Critical.txt", "r+") as file:
+        for line in file:
+            criticalhost.append((line[:-1],443))
+    file.close()
+    return criticalhost
+
+
+def timeinfo():
     da = datetime.date.today()
     d1 = date(hostinfo.cert.not_valid_after.year, hostinfo.cert.not_valid_after.month,
               hostinfo.cert.not_valid_after.day)
     d2 = date(da.year, da.month, da.day)
-    daysi = d1 - d2
-    exdays = daysi
+    return d1 - d2
 
-    if exdays.days < 10:
+
+def critical(hostinfo):
+    exdays = timeinfo()
+    if exdays.days < 50:
         if exdays.days < 0:
-            print("Critical : SSL Certificate for {} is expired on {} days: {} \n{}".format(hostinfo.hostname,
+            print("Critical : SSL Certificate for {} is expired on {} days: {} ".format(hostinfo.hostname,
                                                                                             hostinfo.cert.not_valid_after,
-                                                                                            daysi.days, Printinfo))
+                                                                                            exdays.days))
+            auto_check(hostinfo.hostname)
 
-
-        if 0 <= exdays.days <= 10:
-            print("Critical : SSL Certificate for {} will expire on {} days: {} \n{}".format(hostinfo.hostname,
+        if 0 <= exdays.days <= 50:
+            print("Critical : SSL Certificate for {} will expire on {} days: {} ".format(hostinfo.hostname,
                                                                                             hostinfo.cert.not_valid_after,
-                                                                                            daysi.days, Printinfo))
+                                                                                            exdays.days))
+            auto_check(hostinfo.hostname)
 
-def warning(hostinfo, Printinfo):
-    da = datetime.date.today()
-    d1 = date(hostinfo.cert.not_valid_after.year, hostinfo.cert.not_valid_after.month,
-              hostinfo.cert.not_valid_after.day)
-    d2 = date(da.year, da.month, da.day)
-    daysi = d1 - d2
-    exdays = daysi
-    if 10 < exdays.days <= 2000:
-        print("Warning : SSL Certificate for {} is expired on {} days: {} \n{}".format(hostinfo.hostname,
+
+def warning(hostinfo):
+    exdays = timeinfo()
+    if 50 < exdays.days <= 100:
+        print("Warning : SSL Certificate for {} will expire on {} days: {}".format(hostinfo.hostname,
                                                                                         hostinfo.cert.not_valid_after,
-                                                                                        daysi.days, Printinfo))
+                                                                                        exdays.days))
+        auto_check(hostinfo.hostname)
+
 
 def check_it_out(hostname, port):
     hostinfo = get_certificate(hostname, port)
 
 
-import concurrent.futures
-
 if __name__ == '__main__':
-    urlcount = 0
     criticalcount = 0
     warningcount = 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as e:
-        try:
-            for hostinfo in e.map(lambda x: get_certificate(x[0], x[1]), HOSTS):
-                urlcount += 1
-                da = datetime.date.today()
-                d1 = date(hostinfo.cert.not_valid_after.year, hostinfo.cert.not_valid_after.month,
-                          hostinfo.cert.not_valid_after.day)
-                d2 = date(da.year, da.month, da.day)
-                daysi = d1 - d2
-                exdays = daysi
-                if exdays.days <= 10:
-                    critical(hostinfo, Printinfo())
-                    criticalcount += 1
-                if exdays.days <= 2000:
-                    warning(hostinfo, Printinfo())
-                    warningcount += 1
-        except ConnectionRefusedError:
-            print("Please check given host url is correct ot not after host name:{} and line number {}".format(hostinfo.hostname, urlcount+1))
-        except AttributeError:
-            print("Please check given host url is correct ot not after host name:{} and line number {}".format(hostinfo.hostname, urlcount+1))
-        except:
-            print("Please check given host url is correct ot not after host name:{} and line number {}".format(hostinfo.hostname, urlcount + 1))
+        for hostinfo in e.map(lambda x: get_certificate(x[0], x[1]), HOSTS):
+            exdays = timeinfo()
+            if exdays.days <= 50:
+                critical(hostinfo)
+                criticalcount += 1
+            elif exdays.days <= 100:
+                warning(hostinfo)
+                warningcount += 1
+
     if criticalcount >=1:
         sys.exit(2)
     elif warningcount >=1:

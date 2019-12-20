@@ -2,26 +2,10 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="3497f9cd-24d6-4392-89a6-b4232728c67b" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/Brickuserlist/BrickFtpusers.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Brickuserlist/Permissionslist.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Brickuserlist/getusername.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Brickuserlist/permissions.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/Brickuserlist/userlist.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SSL/Critical.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SSL/List.txt" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SSL/ListofHosts.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SSL/autodeletecheck.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SSL/check-ssl-all.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SSL/check-ssl-single.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/SSL/criticalhostupdate.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/get _list _of_permissions.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/sensu-HTTP-check/check-httpstatus.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/ssl-excep-test.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/Autodeletecheck.py" beforeDir="false" afterPath="$PROJECT_DIR$/Autodeletecheck.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/List.txt" beforeDir="false" afterPath="$PROJECT_DIR$/List.txt" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ListofHosts.py" beforeDir="false" afterPath="$PROJECT_DIR$/ListofHosts.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/ssl-check-all.py" beforeDir="false" afterPath="$PROJECT_DIR$/ssl-check-all.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Brickuserlist/Permissionslist.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/Brickuserlist/permissions.py" beforeDir="false" afterPath="$PROJECT_DIR$/Brickuserlist/permissions.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/Brickuserlist/userlist.py" beforeDir="false" afterPath="$PROJECT_DIR$/Brickuserlist/userlist.py" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
     <option name="SHOW_DIALOG" value="false" />

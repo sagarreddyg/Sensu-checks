@@ -16,7 +16,8 @@ from socket import socket
 from collections import namedtuple
 from datetime import date
 import sys
-
+import RemoveunknownURL
+import os
 HostInfo = namedtuple(field_names='cert hostname peername', typename='HostInfo')
 
 # ('www.bestprice.in', 443)
@@ -34,7 +35,7 @@ cri = get_listof_hosts()
 for i in range(len(cri)):
     HOSTS.append((cri[i], 443))
 
-unknownhost = []
+unknownhost = set()
 
 def verify_cert(cert, hostname):
     # verify notAfternotBefore, CA trusted, servernamesnihostname
@@ -136,6 +137,14 @@ def warning(hostinfo):
 def check_it_out(hostname, port):
     hostinfo = get_certificate(hostname, port)
 
+def removeunknownurl(urlname):
+    with open("List.txt", "r") as f:
+        lines = f.readlines()
+    with open("List.txt", "w") as f:
+        for line in lines:
+            if line.strip("\n") != urlname:
+                f.write(line)
+
 
 import concurrent.futures
 
@@ -160,11 +169,21 @@ if __name__ == '__main__':
                     warning(hostinfo)
                     warningcount += 1
         except ConnectionRefusedError:
-            print("Please check given host url is correct ot not after host name:{} and line number {}".format(hostinfo.hostname, urlcount+1))
+            URL = RemoveunknownURL.findunknownurl(urlcount)
+            print("Please check given host url {} is correct or not".format(URL))
+            RemoveunknownURL.readknownurl(urlcount)
+            removeunknownurl(URL[:-1])
         except AttributeError:
-            print("Please check given host url is correct ot not after host name:{} and line number {}".format(hostinfo.hostname, urlcount+1))
+            URL = RemoveunknownURL.findunknownurl(urlcount)
+            print("Please check given host url {} is correct ot not".format(URL))
+            RemoveunknownURL.readknownurl(urlcount)
+            removeunknownurl(URL[:-1])
         except:
-            print("Please check given host url is correct ot not after host name:{} and line number {}".format(hostinfo.hostname, urlcount + 1))
+            URL = RemoveunknownURL.findunknownurl(urlcount)
+            print("Please check given host url {} is correct or not".format(URL))
+            RemoveunknownURL.readknownurl(urlcount)
+            removeunknownurl(URL[:-1])
+    print(unknownhost)
     if criticalcount >=1:
         sys.exit(2)
     elif warningcount >=1:

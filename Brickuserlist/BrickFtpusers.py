@@ -1,8 +1,6 @@
-import xlwt
-from datetime import datetime
 from xlwt import Workbook
-import Brickuserlist.userlist as BKL
-import Brickuserlist.permissions as BKP
+import Brickuserlist.userslist1 as BKL
+import Brickuserlist.permissionslist as BKP
 wb = Workbook()
 sheet1 = wb.add_sheet('Sheet 1')
 
@@ -31,16 +29,16 @@ print("password_set_at : {}".format(Lis[4]['password_set_at']))"""
 for i in range(len(BKL.Lis)):
     sheet1.write(i+1, 0, '{}'.format(BKL.Lis[i]['username']))
     sheet1.write(i + 1, 1, '{}'.format(BKL.Lis[i]['email']))
-    sheet1.write(i + 1, 2, '{}'.format(BKL.Lis[i]['created_at'][:10]))
-    sheet1.write(i + 1, 3, '{}'.format(BKL.Lis[i]['created_at'][11:19]))
-    if BKL.Lis[i]['last_login_at'] == 'null':
+#    sheet1.write(i + 1, 2, '{}'.format(BKL.Lis[i]['created_at'][:10]))
+#   sheet1.write(i + 1, 3, '{}'.format(BKL.Lis[i]['created_at'][11:19]))
+"""    if BKL.Lis[i]['last_login_at'] == 'null':
         sheet1.write(i + 1, 4, '{}'.format("Never"))
         sheet1.write(i + 1, 5, '{}'.format("Never"))
     else:
         sheet1.write(i + 1, 4, '{}'.format(BKL.Lis[i]['last_login_at'][:10]))
-        sheet1.write(i + 1, 5, '{}'.format(BKL.Lis[i]['last_login_at'][11:19]))
+        sheet1.write(i + 1, 5, '{}'.format(BKL.Lis[i]['last_login_at'][11:19]))"""
 
-    """print("User ID : {}".format(Lis[i]['id']))
+"""print("User ID : {}".format(Lis[i]['id']))
     print("User Name : {}".format(Lis[i]['username']))
     print("User Mail ID : {}".format(Lis[i]['email']))
     print("User created_at : {}".format(Lis[i]['created_at']))

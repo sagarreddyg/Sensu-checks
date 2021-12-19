@@ -1,8 +1,0 @@
-https://www.pizzahut.co.za/home
-https://www.pizzahut.com.sa/en/home
-https://www.pizzahut.com.tr/
-https://www.kuwait.pizzahut.me/en/home
-https://kwlive.phdvasia.com/order/deals
-https://kwlive.phdvasia.com/order/pizzas
-https://kwlive.phdvasia.com/order/pasta
-https://kwlive.phdvasia.com/home?isShowWarning=1&callback=order%2Fpasta

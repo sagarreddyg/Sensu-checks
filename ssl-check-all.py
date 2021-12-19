@@ -1,7 +1,7 @@
 #! /usr/bin/python3
 # -*- encoding: utf-8 -*-
 # requires a recent enough python with idna support in socket
-# pyopenssl, cryptography and idna
+# need to install pyopenssl, cryptography,linecache and idna
 # check config sensuctl check create check_name --commamd 'file location' --interval 30 --subscriptions subscriptionname
 #This check will alerts every 30 seconds and gives the output for ssl certificate expiration date
 #Warning : 100 days
@@ -15,9 +15,11 @@ import datetime
 from socket import socket
 from collections import namedtuple
 from datetime import date
+import linecache
 import sys
 import ListofHosts
 HostInfo = namedtuple(field_names='cert hostname peername', typename='HostInfo')
+
 
 # ('www.bestprice.in', 443)
 HOSTS =ListofHosts.HOSTS
@@ -31,14 +33,6 @@ HOSTS =ListofHosts.HOSTS
     ('phindia-resources.cdn.martjack.io', 443),
     ('www.kuwait.pizzahut.me', 443)
 ]"""
-
-unknownhost = []
-
-def verify_cert(cert, hostname):
-    # verify notAfter/notBefore, CA trusted, servername/sni/hostname
-    cert.has_expired()
-    # service_identity.pyopenssl.verify_hostname(client_ssl, hostname)
-    # issuer
 
 
 def get_certificate(hostname, port):
@@ -86,15 +80,9 @@ def get_issuer(cert):
 
 def Printinfo():
 
-    return (''' » {hostname} « … {peername}
-                \tcommonName: {commonname}
-                \tSAN: {SAN}
-                \tissuer: {issuer}
+    return (''' commonName: {commonname}, issuer: {issuer}
                 '''.format(
-                hostname=hostinfo.hostname,
-                peername=hostinfo.peername,
                 commonname=get_common_name(hostinfo.cert),
-                SAN=get_alt_names(hostinfo.cert),
                 issuer=get_issuer(hostinfo.cert),
             ))
 
@@ -104,16 +92,15 @@ def critical(hostinfo, Printinfo):
               hostinfo.cert.not_valid_after.day)
     d2 = date(da.year, da.month, da.day)
     daysi = d1 - d2
-    exdays = daysi
 
-    if exdays.days < 10:
-        if exdays.days < 0:
+    if daysi.days < 10:
+        if daysi.days < 0:
             print("Critical : SSL Certificate for {} is expired on {} days: {} \n{}".format(hostinfo.hostname,
                                                                                             hostinfo.cert.not_valid_after,
                                                                                             daysi.days, Printinfo))
 
 
-        if 0 <= exdays.days <= 10:
+        if 0 <= daysi.days <= 10:
             print("Critical : SSL Certificate for {} will expire on {} days: {} \n{}".format(hostinfo.hostname,
                                                                                             hostinfo.cert.not_valid_after,
                                                                                             daysi.days, Printinfo))
@@ -124,44 +111,44 @@ def warning(hostinfo, Printinfo):
               hostinfo.cert.not_valid_after.day)
     d2 = date(da.year, da.month, da.day)
     daysi = d1 - d2
-    exdays = daysi
-    if 10 < exdays.days <= 2000:
-        print("Warning : SSL Certificate for {} is expired on {} days: {} \n{}".format(hostinfo.hostname,
+    if 10 < daysi.days <= 200:
+        print("Warning : SSL Certificate for {} will expire on {} days: {} \n{}".format(hostinfo.hostname,
                                                                                         hostinfo.cert.not_valid_after,
                                                                                         daysi.days, Printinfo))
 
-def check_it_out(hostname, port):
-    hostinfo = get_certificate(hostname, port)
-
 
 import concurrent.futures
+
+
 
 if __name__ == '__main__':
     urlcount = 0
     criticalcount = 0
     warningcount = 0
     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as e:
-        try:
-            for hostinfo in e.map(lambda x: get_certificate(x[0], x[1]), HOSTS):
-                urlcount += 1
-                da = datetime.date.today()
-                d1 = date(hostinfo.cert.not_valid_after.year, hostinfo.cert.not_valid_after.month,
-                          hostinfo.cert.not_valid_after.day)
-                d2 = date(da.year, da.month, da.day)
-                daysi = d1 - d2
-                exdays = daysi
-                if exdays.days <= 10:
-                    critical(hostinfo, Printinfo())
-                    criticalcount += 1
-                if exdays.days <= 2000:
-                    warning(hostinfo, Printinfo())
-                    warningcount += 1
-        except ConnectionRefusedError:
-            print("Please check given host url is correct ot not after host name:{} and line number {}".format(hostinfo.hostname, urlcount+1))
-        except AttributeError:
-            print("Please check given host url is correct ot not after host name:{} and line number {}".format(hostinfo.hostname, urlcount+1))
-        except:
-            print("Please check given host url is correct ot not after host name:{} and line number {}".format(hostinfo.hostname, urlcount + 1))
+
+            for Host in HOSTS:
+                try:
+                    hostinfo = get_certificate(Host[0], Host[1])
+                except:
+                    url = linecache.getline("List.txt", urlcount + 1)
+                    print("Please check given host url is correct ot not host name:{} ".format(Host[0]))
+                    #ListofHosts.UpdateList(urlcount, Host[0]) #to move the unknown url in to UnknownList.txt file
+                    continue
+                else:
+                    urlcount += 1
+                    da = datetime.date.today()
+                    d1 = date(hostinfo.cert.not_valid_after.year, hostinfo.cert.not_valid_after.month,
+                              hostinfo.cert.not_valid_after.day)
+                    d2 = date(da.year, da.month, da.day)
+                    daysi = d1 - d2
+                    if daysi.days <= 10:
+                        critical(hostinfo, Printinfo())
+                        criticalcount += 1
+                    if daysi.days <= 200:
+                        warning(hostinfo, Printinfo())
+                        warningcount += 1
+
     if criticalcount >=1:
         sys.exit(2)
     elif warningcount >=1:

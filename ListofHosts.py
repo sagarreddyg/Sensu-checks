@@ -1,5 +1,7 @@
 import os
 import re
+import requests
+
 
 def get_listof_criticalhosts():
     host=[]
@@ -23,42 +25,33 @@ def get_listof_criticalhosts():
 
 HOSTS = []
 cri = get_listof_criticalhosts()
+
+
+"""def UpdateList(urlcount, url):
+    file = open("List.txt", "r")
+    lines = file.readlines()
+    file.close()
+    del lines[urlcount]
+    file = open("List.txt", "w")
+    for l in lines:
+        file.write(l)
+    file.close()
+    file = open("UnknownList.txt", "a")
+    file.write(url)
+    file.write("\n")
+    file.close()
+"""
+
 for i in range(len(cri)):
     HOSTS.append((cri[i], 443))
+    """
+    try:
+        code = requests.get('http://{}'.format(cri[i]))
+        if 100 <= code.status_code >= 499:
+            print("The url is not responding {0}, status code is {1}".format(cri[i], code.status_code))
+        else:
+            HOSTS.append((cri[i], 443))
+    except:
+        continue"""
 
 
-def create_criticalhosts(host):
-    for l in range(len(HOSTS)):
-        with open("Critical.txt", "r+") as file:
-            for line in file:
-                if host[l][0] in line:
-                    break
-            else:  # not found, we are at the eof
-                file.write('{},\n'.format(host[l]))  # append missing datd
-        file.close()
-
-
-def get_listof_criticalhosts():
-    host=[]
-    with open("Critical.txt", "r+") as file:
-        for line in file:
-            host.append("{}".format(line[:-1]),)
-    return host
-
-
-def update_criticalhosts(host):
-    with open("Critical.txt", "r+") as file:
-        for line in file:
-            if host in line:
-                break
-        else:  # not found, we are at the eof
-            file.write("{}\n".format(host))  # append missing datd
-    file.close()
-
-
-def update_hostname(inp):
-    os.remove('single.txt')
-    file = open("single.txt", "w")
-    file.write(inp)
-    file.write('\n')
-    file.close()
